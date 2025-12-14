@@ -1,9 +1,10 @@
+
 import sys
 import ply.yacc as yacc
-from scanner import Scanner
 from parser import Mparser
 from TreePrinter import TreePrinter
 from TypeChecker import TypeChecker
+from Interpreter import Interpreter
 
 
 if __name__ == '__main__':
@@ -15,13 +16,19 @@ if __name__ == '__main__':
         print("Cannot open {0} file".format(filename))
         sys.exit(0)
 
-    lexer = Scanner()
-    parser = Mparser()
+    Mparser = Mparser()
+    parser = yacc.yacc(module=Mparser)
     text = file.read()
-    
-    ast = parser.parse(lexer.tokenize(text))
-    ast.printTree()
-    
+
+    ast = parser.parse(text, lexer=Mparser.scanner)
+
+    # Below code shows how to use visitor
     typeChecker = TypeChecker()   
     typeChecker.visit(ast)   # or alternatively ast.accept(typeChecker)
+
+    ast.accept(Interpreter())
+    # in future
+    # ast.accept(OptimizationPass1())
+    # ast.accept(OptimizationPass2())
+    # ast.accept(CodeGenerator())
     
