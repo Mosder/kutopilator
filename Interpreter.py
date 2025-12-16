@@ -23,7 +23,7 @@ class Operations:
             '<=': lambda x, y: x <= y,
             '>=': lambda x, y: x >= y,
             '==': lambda x, y: x == y,
-            '!=': lambda x, y: x != y
+            '!=': lambda x, y: x != y,
         }
 
     def mat_vec_op(self, x, y, op_str):
@@ -37,6 +37,7 @@ class Operations:
         return x
 
     def from_str(self, op_str, x, y):
+        print(x, y, op_str)
         return self.op_str_to_fun.get(op_str)(x, y)
 
 ops = Operations()
@@ -76,72 +77,152 @@ class Interpreter(object):
 
     @when(AST.UnaryExpr)
     def visit(self, node):
-        pass
+        r1 = node.variable.accept(self)
+        return -r1
 
     @when(AST.AssignExpr)
     def visit(self, node):
-        pass
+        r1 = node.right.accept(self)
+        if isinstance(node.left, AST.Variable):
+            r1 = r1 if node.op == '=' else ops.from_str(node.op[0], self.memory.get(node.left.name), r1)
+            self.memory.set(node.left.name, r1)
+        else: # Reference
+            array = self.memory.get(node.left.array.name)
+            if len(node.left.indices) == 1: #1D
+                r1 = r1 if node.op == '=' else ops.from_str(node.op[0], array[node.left.indices[0]], r1)
+                array[node.left.indices[0]] = r1
+                self.memory.set(node.left.array.name, array)
+            else: #2D
+                r1 = r1 if node.op == '=' else ops.from_str(node.op[0], array[node.left.indices[0]][node.left.indices[1]], r1)
+                array[node.left.indices[0]][node.left.indices[1]] = r1
+                self.memory.set(node.left.array.name, array)
 
     @when(AST.Block)
     def visit(self, node):
-        pass
+        self.memory = MemoryStack("global")
+        for instruction in node.content:
+            instruction.accept(self)
 
     @when(AST.If)
     def visit(self, node):
-        pass
+        instruction = None
+        if node.condition.accept(self):
+            instruction = node.instruction
+        elif node.else_instruction:
+            instruction = node.else_instruction
+
+        if instruction:
+            self.memory.push("if")
+            try:
+                if isinstance(instruction, AST.Block):
+                    for inst in instruction.content:
+                        inst.accept(self)
+                else:
+                    instruction.accept(self)
+            except ContinueException as e:
+                raise e
+            except BreakException as e:
+                raise e
+            except ReturnValueException as e:
+                raise e
+            finally:
+                self.memory.pop()
 
     @when(AST.While)
     def visit(self, node):
-        r = None
-        while node.cond.accept(self):
-            r = node.body.accept(self)
-        return r
+        self.memory.push("while")
+        while node.condition.accept(self):
+            try:
+                if isinstance(node.instruction, AST.Block):
+                    for inst in node.instruction.content:
+                        inst.accept(self)
+                else:
+                    node.instruction.accept(self)
+            except ContinueException:
+                continue
+            except BreakException:
+                break
+        self.memory.pop()
 
     @when(AST.For)
     def visit(self, node):
-        pass
+        start = node.Range.left.accept(self)
+        end = node.Range.right.accept(self)
+        var_name = node.variable.name
+        self.memory.push("for")
+        self.memory.set(var_name, start)
+        while self.memory.get(var_name) <= end:
+            try:
+                if isinstance(node.instruction, AST.Block):
+                    for inst in node.instruction.content:
+                        inst.accept(self)
+                else:
+                    node.instruction.accept(self)
+            except ContinueException:
+                continue
+            except BreakException:
+                break
+            finally:
+                self.memory.set(var_name, self.memory.get(var_name) + 1)
+        self.memory.pop()
 
     @when(AST.Break)
     def visit(self, node):
-        pass
+        raise BreakException()
 
     @when(AST.Continue)
     def visit(self, node):
-        pass
+        raise ContinueException()
 
     @when(AST.Return)
     def visit(self, node):
-        pass
+        raise ReturnValueException(node.value.accept(self))
 
     @when(AST.Print)
     def visit(self, node):
-        pass
+        for val in node.values:
+            print(val.accept(self), end=' ')
+        print()
 
     @when(AST.Zeros)
     def visit(self, node):
-        pass
+        if len(node.values) == 1:
+            return [0 for _ in range(node.values[0].accept(self))]
+        else:
+            return [[0 for _ in range(node.values[1].accept(self))] for _ in range(node.values[0].accept(self))]
 
     @when(AST.Eye)
     def visit(self, node):
-        pass
+        return [[1 if i == j else 0 for i in range(node.value.accept(self))] for j in range(node.value.accept(self))]
 
     @when(AST.Ones)
     def visit(self, node):
-        pass
+        if len(node.values) == 1:
+            return [1 for _ in range(node.values[0].accept(self))]
+        else:
+            return [[1 for _ in range(node.values[1].accept(self))] for _ in range(node.values[0].accept(self))]
 
     @when(AST.Transpose)
     def visit(self, node):
-        pass
+        mat = node.value.accept(self)
+        if isinstance(mat[0], list):
+            return [[x[j][i] for j in range(len(mat))] for i in range(len(mat[0]))]
+        else:
+            return mat
 
     @when(AST.Reference)
     def visit(self, node):
-        pass
+        arr = self.memory.get(node.array.name)
+        if len(node.indices) == 1: #1D
+            return arr[node.indices[0]]
+        else: #2D
+            return arr[node.indices[0]][node.indices[1]]
 
     @when(AST.Vector)
     def visit(self, node):
-        pass
+        return [x.accept(self) for x in node.elements]
 
     @when(AST.Range)
     def visit(self, node):
-        pass
+        return [i for i in range(node.left.accept(self), node.right.accept(self)+1)]
 
