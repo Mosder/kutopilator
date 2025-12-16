@@ -17,7 +17,7 @@ class MemoryStack:
     def __init__(self, memory=None): # initialize memory stack with memory <memory>
         self.stack = list()
         if memory:
-            self.stack.append(memory)
+            self.stack.append(Memory(memory))
 
     def get(self, name):             # gets from memory stack current value of variable <name>
         for mem in self.stack[::-1]:
@@ -36,7 +36,7 @@ class MemoryStack:
 
     def pop(self):          # pops the top memory from the stack
         popped_memory = self.stack.pop()
-        for key, val in popped_memory.items():
+        for key, val in popped_memory.memory.items():
             for mem in self.stack[::-1]:
                 if mem.has_key(key):
                     mem.put(key, val)
