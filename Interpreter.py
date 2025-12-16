@@ -37,7 +37,6 @@ class Operations:
         return x
 
     def from_str(self, op_str, x, y):
-        print(x, y, op_str)
         return self.op_str_to_fun.get(op_str)(x, y)
 
 ops = Operations()
@@ -89,12 +88,12 @@ class Interpreter(object):
         else: # Reference
             array = self.memory.get(node.left.array.name)
             if len(node.left.indices) == 1: #1D
-                r1 = r1 if node.op == '=' else ops.from_str(node.op[0], array[node.left.indices[0]], r1)
-                array[node.left.indices[0]] = r1
+                r1 = r1 if node.op == '=' else ops.from_str(node.op[0], array[node.left.indices[0].accept(self)], r1)
+                array[node.left.indices[0].accept(self)] = r1
                 self.memory.set(node.left.array.name, array)
             else: #2D
-                r1 = r1 if node.op == '=' else ops.from_str(node.op[0], array[node.left.indices[0]][node.left.indices[1]], r1)
-                array[node.left.indices[0]][node.left.indices[1]] = r1
+                r1 = r1 if node.op == '=' else ops.from_str(node.op[0], array[node.left.indices[0].accept(self)][node.left.indices[1].accept(self)], r1)
+                array[node.left.indices[0].accept(self)][node.left.indices[1].accept(self)] = r1
                 self.memory.set(node.left.array.name, array)
 
     @when(AST.Block)
@@ -187,7 +186,7 @@ class Interpreter(object):
     @when(AST.Zeros)
     def visit(self, node):
         if len(node.values) == 1:
-            return [0 for _ in range(node.values[0].accept(self))]
+            return [[0 for _ in range(node.values[0].accept(self))] for _ in range(node.values[0].accept(self))]
         else:
             return [[0 for _ in range(node.values[1].accept(self))] for _ in range(node.values[0].accept(self))]
 
@@ -198,7 +197,7 @@ class Interpreter(object):
     @when(AST.Ones)
     def visit(self, node):
         if len(node.values) == 1:
-            return [1 for _ in range(node.values[0].accept(self))]
+            return [[1 for _ in range(node.values[0].accept(self))] for _ in range(node.values[0].accept(self))]
         else:
             return [[1 for _ in range(node.values[1].accept(self))] for _ in range(node.values[0].accept(self))]
 
@@ -214,9 +213,9 @@ class Interpreter(object):
     def visit(self, node):
         arr = self.memory.get(node.array.name)
         if len(node.indices) == 1: #1D
-            return arr[node.indices[0]]
+            return arr[node.indices[0].accept(self)]
         else: #2D
-            return arr[node.indices[0]][node.indices[1]]
+            return arr[node.indices[0].accept(self)][node.indices[1].accept(self)]
 
     @when(AST.Vector)
     def visit(self, node):
