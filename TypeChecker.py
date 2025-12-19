@@ -70,6 +70,10 @@ class TypeChecker(NodeVisitor):
             return Type('float', shape)
         if T1.obj_type == 'int' and T2.obj_type == 'int':
             return Type('int', shape)
+        if T1.obj_type == 'string' and T2.obj_type == 'int':
+            return Type('string', 0)
+        if T1.obj_type == 'int' and T2.obj_type == 'string':
+            return Type('string', 0)
         return self.error(origin, f"Couldn't coerce types {T1.obj_type}, {T2.obj_type}")
 
     def is_scalar(self, T):

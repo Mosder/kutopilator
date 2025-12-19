@@ -235,7 +235,8 @@ class Mparser(Parser):
 
     @_('STRING')
     def expression(self, p):
-        return AST.String(p.STRING, p.lineno)
+        # remove the quotations marks from the string, since it saves it with them
+        return AST.String(p.STRING[1:-1], p.lineno)
 
     @_('EYE "(" expression ")"')
     def expression(self, p):
